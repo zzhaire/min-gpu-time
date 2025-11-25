@@ -43,6 +43,7 @@ min-gpu-time/
    - 任务完成时间（JCT）：每个任务的提交时间和完成时间
    - 饿死检测：长时间等待的任务会被标记为饿死
 6. **CSV表格输出**：结果以CSV格式保存，便于分析
+7. **GPU共享惩罚**：同一块GPU上多个任务运行时自动降低效率，可配置规则
 
 ## 配置说明
 
@@ -67,6 +68,10 @@ min-gpu-time/
 - `starvation_threshold`: 饿死阈值，秒（默认：3600.0）
 - `time_step`: 时间步长，秒（默认：1.0）
 - `timeline_interval`: 时间线记录间隔，秒（默认：60.0）
+- `sharing_penalty_map`: GPU共享映射表（任务数 -> 效率），默认 {1:1.0, 2:0.9, 3:0.8}
+- `sharing_penalty_floor`: 共享效率下限（默认：0.5）
+- `sharing_penalty_fn`: 可选自定义函数，输入并发任务数 -> 输出效率
+- `sharing_penalty_aggregation`: 多块GPU时如何合并共享惩罚（默认 `min`，可选 `average`）
 
 ### 实验配置（ExperimentConfig）
 - `seed`: 随机种子（默认：42）

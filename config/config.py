@@ -1,7 +1,8 @@
 """
 配置文件：定义集群环境参数和实验参数
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Callable, Dict, Optional
 
 
 @dataclass
@@ -34,6 +35,16 @@ class SimulatorConfig:
     starvation_threshold: float = 3600.0  # 饿死阈值（秒）
     time_step: float = 1.0           # 时间步长（秒）
     timeline_interval: float = 60.0  # 时间线记录间隔（秒）
+    sharing_penalty_map: Dict[int, float] = field(
+        default_factory=lambda: {
+            1: 1.0,  # 无共享
+            2: 0.9,  # 两个任务 -> 90%效率
+            3: 0.8,  # 三个任务 -> 80%效率
+        }
+    )
+    sharing_penalty_floor: float = 0.5  # 共享任务过多时的效率下限
+    sharing_penalty_fn: Optional[Callable[[int], float]] = None  # 自定义共享惩罚函数
+    sharing_penalty_aggregation: str = "min"  # "min" 或 "average"
 
 
 @dataclass
@@ -48,4 +59,3 @@ default_cluster_config = ClusterConfig()
 default_task_config = TaskConfig()
 default_simulator_config = SimulatorConfig()
 default_experiment_config = ExperimentConfig()
-
