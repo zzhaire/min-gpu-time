@@ -8,17 +8,17 @@ from typing import Callable, Dict, Optional
 @dataclass
 class ClusterConfig:
     """集群环境配置（固定参数）"""
-    num_racks: int = 4              # 机架数量
+    num_racks: int = 5              # 机架数量
     gpus_per_rack: int = 8          # 每个机架的GPU数量
     gpu_memory: float = 80.0        # 每个GPU的显存大小（GB）
-    intra_rack_penalty: float = 1.2  # 同一机架内GPU惩罚系数
-    inter_rack_penalty: float = 1.8  # 跨机架GPU惩罚系数
+    intra_rack_penalty: float = 1.4  # 同一机架内GPU惩罚系数
+    inter_rack_penalty: float = 2.1  # 跨机架GPU惩罚系数
 
 
 @dataclass
 class TaskConfig:
     """任务生成配置"""
-    num_tasks: int = 20              # 任务数量
+    num_tasks: int = 50              # 任务数量
     min_gpus: int = 1               # 最小GPU数量
     max_gpus: int = 16               # 最大GPU数量
     min_memory: float = 2.0          # 每个GPU最小内存（GB）
@@ -32,7 +32,7 @@ class TaskConfig:
 class SimulatorConfig:
     """模拟器配置"""
     max_time: float = 86400.0        # 最大运行时间（秒），默认24小时
-    starvation_threshold: float = 3600.0  # 饿死阈值（秒）
+    starvation_threshold: float = 7200.0  # 饿死阈值（秒）
     time_step: float = 1.0           # 时间步长（秒）
     timeline_interval: float = 60.0  # 时间线记录间隔（秒）
     sharing_penalty_map: Dict[int, float] = field(
