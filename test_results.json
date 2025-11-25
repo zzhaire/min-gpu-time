@@ -1,0 +1,214 @@
+{
+  "summary": {
+    "total_tasks": 4,
+    "completed_tasks": 2,
+    "starved_tasks": 2,
+    "total_gpu_time": 1623.0,
+    "average_jct": 414.2155316143939,
+    "average_wait_time": 0.2155316143938819,
+    "total_jct": 828.4310632287878
+  },
+  "task_metrics": [
+    {
+      "task_id": "task-2",
+      "submission_time": 418.78960810333126,
+      "start_time": 419.0,
+      "completion_time": 679.0,
+      "estimated_duration": 259.28190776470717,
+      "actual_duration": 260.0,
+      "jct": 260.21039189666874,
+      "wait_time": 0.2103918966687388,
+      "num_gpus": 4,
+      "memory_per_gpu": 4.381392153781404,
+      "allocated_gpus": [
+        "rack-0-0",
+        "rack-0-1",
+        "rack-0-2",
+        "rack-0-3"
+      ],
+      "status": "completed"
+    },
+    {
+      "task_id": "task-0",
+      "submission_time": 401.779328667881,
+      "start_time": 402.0,
+      "completion_time": 970.0,
+      "estimated_duration": 567.5498412275027,
+      "actual_duration": 568.0,
+      "jct": 568.2206713321191,
+      "wait_time": 0.220671332119025,
+      "num_gpus": 1,
+      "memory_per_gpu": 4.300129062672003,
+      "allocated_gpus": [
+        "rack-0-0"
+      ],
+      "status": "completed"
+    },
+    {
+      "task_id": "task-3",
+      "submission_time": 1262.3849524624247,
+      "start_time": null,
+      "completion_time": null,
+      "estimated_duration": 1317.2333419680858,
+      "actual_duration": null,
+      "jct": null,
+      "wait_time": null,
+      "num_gpus": 1,
+      "memory_per_gpu": 10.734940755263356,
+      "allocated_gpus": [],
+      "status": "starved"
+    },
+    {
+      "task_id": "task-4",
+      "submission_time": 1456.974822020088,
+      "start_time": null,
+      "completion_time": null,
+      "estimated_duration": 1101.7516625890448,
+      "actual_duration": null,
+      "jct": null,
+      "wait_time": null,
+      "num_gpus": 4,
+      "memory_per_gpu": 6.64528746448836,
+      "allocated_gpus": [],
+      "status": "starved"
+    }
+  ],
+  "timeline": [
+    {
+      "time": 0.0,
+      "total_gpu_time": 0.0,
+      "cluster_utilization": 0.0,
+      "running_tasks": 0,
+      "pending_tasks": 0,
+      "completed_tasks": 0
+    },
+    {
+      "time": 60.0,
+      "total_gpu_time": 0.0,
+      "cluster_utilization": 0.0,
+      "running_tasks": 0,
+      "pending_tasks": 0,
+      "completed_tasks": 0
+    },
+    {
+      "time": 120.0,
+      "total_gpu_time": 0.0,
+      "cluster_utilization": 0.0,
+      "running_tasks": 0,
+      "pending_tasks": 0,
+      "completed_tasks": 0
+    },
+    {
+      "time": 180.0,
+      "total_gpu_time": 24.0,
+      "cluster_utilization": 0.0631270512972653,
+      "running_tasks": 1,
+      "pending_tasks": 0,
+      "completed_tasks": 0
+    },
+    {
+      "time": 240.0,
+      "total_gpu_time": 84.0,
+      "cluster_utilization": 0.0631270512972653,
+      "running_tasks": 1,
+      "pending_tasks": 0,
+      "completed_tasks": 0
+    },
+    {
+      "time": 300.0,
+      "total_gpu_time": 144.0,
+      "cluster_utilization": 0.0631270512972653,
+      "running_tasks": 1,
+      "pending_tasks": 0,
+      "completed_tasks": 0
+    },
+    {
+      "time": 360.0,
+      "total_gpu_time": 204.0,
+      "cluster_utilization": 0.0631270512972653,
+      "running_tasks": 1,
+      "pending_tasks": 0,
+      "completed_tasks": 0
+    },
+    {
+      "time": 420.0,
+      "total_gpu_time": 270.0,
+      "cluster_utilization": 0.17680256003579453,
+      "running_tasks": 3,
+      "pending_tasks": 0,
+      "completed_tasks": 0
+    },
+    {
+      "time": 480.0,
+      "total_gpu_time": 510.0,
+      "cluster_utilization": 0.17680256003579453,
+      "running_tasks": 3,
+      "pending_tasks": 0,
+      "completed_tasks": 0
+    },
+    {
+      "time": 540.0,
+      "total_gpu_time": 750.0,
+      "cluster_utilization": 0.17680256003579453,
+      "running_tasks": 3,
+      "pending_tasks": 0,
+      "completed_tasks": 0
+    },
+    {
+      "time": 600.0,
+      "total_gpu_time": 990.0,
+      "cluster_utilization": 0.17680256003579453,
+      "running_tasks": 3,
+      "pending_tasks": 0,
+      "completed_tasks": 0
+    },
+    {
+      "time": 660.0,
+      "total_gpu_time": 1230.0,
+      "cluster_utilization": 0.17680256003579453,
+      "running_tasks": 3,
+      "pending_tasks": 0,
+      "completed_tasks": 0
+    },
+    {
+      "time": 720.0,
+      "total_gpu_time": 1344.0,
+      "cluster_utilization": 0.08552355683201529,
+      "running_tasks": 2,
+      "pending_tasks": 0,
+      "completed_tasks": 1
+    },
+    {
+      "time": 780.0,
+      "total_gpu_time": 1404.0,
+      "cluster_utilization": 0.08552355683201529,
+      "running_tasks": 2,
+      "pending_tasks": 0,
+      "completed_tasks": 1
+    },
+    {
+      "time": 840.0,
+      "total_gpu_time": 1464.0,
+      "cluster_utilization": 0.08552355683201529,
+      "running_tasks": 2,
+      "pending_tasks": 0,
+      "completed_tasks": 1
+    },
+    {
+      "time": 900.0,
+      "total_gpu_time": 1524.0,
+      "cluster_utilization": 0.08552355683201529,
+      "running_tasks": 2,
+      "pending_tasks": 0,
+      "completed_tasks": 1
+    },
+    {
+      "time": 960.0,
+      "total_gpu_time": 1584.0,
+      "cluster_utilization": 0.08552355683201529,
+      "running_tasks": 2,
+      "pending_tasks": 0,
+      "completed_tasks": 1
+    }
+  ]
+}
