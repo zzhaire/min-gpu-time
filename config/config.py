@@ -9,9 +9,9 @@ class ClusterConfig:
     """集群环境配置（固定参数）"""
     num_racks: int = 4              # 机架数量
     gpus_per_rack: int = 8          # 每个机架的GPU数量
-    gpu_memory: float = 24.0        # 每个GPU的显存大小（GB）
-    intra_rack_penalty: float = 1.0  # 同一机架内GPU惩罚系数
-    inter_rack_penalty: float = 1.5  # 跨机架GPU惩罚系数
+    gpu_memory: float = 80.0        # 每个GPU的显存大小（GB）
+    intra_rack_penalty: float = 1.2  # 同一机架内GPU惩罚系数
+    inter_rack_penalty: float = 1.8  # 跨机架GPU惩罚系数
 
 
 @dataclass
@@ -19,10 +19,10 @@ class TaskConfig:
     """任务生成配置"""
     num_tasks: int = 20              # 任务数量
     min_gpus: int = 1               # 最小GPU数量
-    max_gpus: int = 4               # 最大GPU数量
-    min_memory: float = 4.0          # 每个GPU最小内存（GB）
-    max_memory: float = 16.0         # 每个GPU最大内存（GB）
-    min_duration: float = 100.0      # 最小执行时间（秒）
+    max_gpus: int = 16               # 最大GPU数量
+    min_memory: float = 2.0          # 每个GPU最小内存（GB）
+    max_memory: float = 60.0         # 每个GPU最大内存（GB）
+    min_duration: float = 10.0      # 最小执行时间（秒）
     max_duration: float = 1800.0     # 最大执行时间（秒）
     submission_window: float = 1800.0  # 提交时间窗口（秒）
 
