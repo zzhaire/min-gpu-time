@@ -168,7 +168,7 @@ class Metrics:
         print(f"平均等待时间: {summary['average_wait_time']:.2f} 秒" if summary['average_wait_time'] else "平均等待时间: N/A")
         print(f"总JCT: {summary['total_jct']:.2f} 秒")
         print("="*50)
-    
+
     def print_task_table(self):
         """打印任务详情表格"""
         if len(self.task_metrics) == 0:

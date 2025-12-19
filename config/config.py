@@ -8,7 +8,7 @@ from typing import Callable, Dict, Optional
 @dataclass
 class ClusterConfig:
     """集群环境配置（固定参数）"""
-    num_racks: int = 5              # 机架数量
+    num_racks: int = 8              # 机架数量
     gpus_per_rack: int = 8          # 每个机架的GPU数量
     gpu_memory: float = 80.0        # 每个GPU的显存大小（GB）
     intra_rack_penalty: float = 1.4  # 同一机架内GPU惩罚系数
@@ -18,7 +18,7 @@ class ClusterConfig:
 @dataclass
 class TaskConfig:
     """任务生成配置"""
-    num_tasks: int = 50              # 任务数量
+    num_tasks: int = 100              # 任务数量
     min_gpus: int = 1               # 最小GPU数量
     max_gpus: int = 16               # 最大GPU数量
     min_memory: float = 2.0          # 每个GPU最小内存（GB）
@@ -31,8 +31,8 @@ class TaskConfig:
 @dataclass
 class SimulatorConfig:
     """模拟器配置"""
-    max_time: float = 86400.0        # 最大运行时间（秒），默认24小时
-    starvation_threshold: float = 7200.0  # 饿死阈值（秒）
+    max_time: float = float('inf')         # 最大运行时间（秒），默认24小时
+    starvation_threshold: float = float('inf')  # 饿死阈值（秒）
     time_step: float = 1.0           # 时间步长（秒）
     timeline_interval: float = 60.0  # 时间线记录间隔（秒）
     sharing_penalty_map: Dict[int, float] = field(
@@ -54,8 +54,33 @@ class ExperimentConfig:
     output_dir: str = "results"     # 输出目录
 
 
+@dataclass
+class MinGPUSchedulerConfig:
+    """MinGPUTime 调度器配置"""
+    patience_threshold: float = 1.1   # 接受的最大惩罚系数
+    starvation_limit: float = 2000.0  # 等待超过该时间强制执行（秒）
+
+
+@dataclass
+class PolluxSchedulerConfig:
+    """Pollux 调度器配置"""
+    alpha: float = 0.5  # 权衡因子: 0=MinCost(MinGPUTime), 1=MaxSpeed(Goodput)
+    patience_threshold: float = 1.1   # 接受的最大惩罚系数
+    starvation_limit: float = 2000.0  # 等待超过该时间强制执行（秒）
+
+
+@dataclass
+class SchedulerConfig:
+    """调度器相关配置"""
+    min_gpu_time: MinGPUSchedulerConfig = field(
+        default_factory=MinGPUSchedulerConfig)
+    pollux: PolluxSchedulerConfig = field(
+        default_factory=PolluxSchedulerConfig)
+
+
 # 默认配置实例
 default_cluster_config = ClusterConfig()
 default_task_config = TaskConfig()
 default_simulator_config = SimulatorConfig()
 default_experiment_config = ExperimentConfig()
+default_scheduler_config = SchedulerConfig()

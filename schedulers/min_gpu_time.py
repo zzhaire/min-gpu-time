@@ -13,12 +13,11 @@ class MinGPUTimeScheduler(Scheduler):
     最小化GPU时间调度器：耐心策略
     """
 
-    def __init__(self, cluster, patience_threshold=1.1):
+    def __init__(self, cluster, patience_threshold=1.1, starvation_limit=2000.0):
         super().__init__(cluster)
         self.patience_threshold = patience_threshold
-        # 必须小于模拟器的饿死阈值(默认3600s)
-        # 设为 2000s，留出充足时间让任务在被杀之前强制运行
-        self.starvation_limit = 2000.0
+        # 必须小于模拟器 starvation_threshold，确保任务在被“饿死”前还能被强制执行
+        self.starvation_limit = starvation_limit
 
     def schedule(self, pending_tasks: List[Task], current_time: float) -> Dict[str, List[str]]:
         allocations = {}

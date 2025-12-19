@@ -52,15 +52,15 @@ min-gpu-time/
 ### 集群配置（ClusterConfig）
 - `num_racks`: 机架数量（默认：4）
 - `gpus_per_rack`: 每个机架的GPU数量（默认：8）
-- `gpu_memory`: 每个GPU的显存大小，GB（默认：24.0）
+- `gpu_memory`: 每个GPU的显存大小，GB（默认：80.0）
 - `intra_rack_penalty`: 同一机架内GPU惩罚系数（默认：1.0）
-- `inter_rack_penalty`: 跨机架GPU惩罚系数（默认：1.5）
+- `inter_rack_penalty`: 跨机架GPU惩罚系数（默认：3.0）
 
 ### 任务配置（TaskConfig）
 - `num_tasks`: 任务数量（默认：20）
-- `min_gpus` / `max_gpus`: GPU数量范围（默认：1-4）
-- `min_memory` / `max_memory`: 每个GPU内存范围，GB（默认：4.0-16.0）
-- `min_duration` / `max_duration`: 执行时间范围，秒（默认：100.0-1800.0）
+- `min_gpus` / `max_gpus`: GPU数量范围（默认：1-8）
+- `min_memory` / `max_memory`: 每个GPU内存范围，GB（默认：2.0-60.0）
+- `min_duration` / `max_duration`: 执行时间范围，秒（默认：10.0-1800.0）
 - `submission_window`: 提交时间窗口，秒（默认：1800.0）
 
 ### 模拟器配置（SimulatorConfig）
@@ -76,6 +76,10 @@ min-gpu-time/
 ### 实验配置（ExperimentConfig）
 - `seed`: 随机种子（默认：42）
 - `output_dir`: 输出目录（默认："results"）
+
+### 调度器配置（SchedulerConfig）
+- `min_gpu_time.patience_threshold`：MinGPUTime 调度器可接受的最大惩罚系数。若当前候选分配的惩罚高于该阈值且任务还未接近饿死，调度器会“耐心等待”，暂不执行，以期等到同机架的好位置。
+- `min_gpu_time.starvation_limit`：MinGPUTime 调度器的等待上限（秒）。当任务等待时间超过该值，即使惩罚仍然较高，也会立即执行，以避免被模拟器按 `starvation_threshold` 判定为饿死。该值应小于 `SimulatorConfig.starvation_threshold`。
 
 ## 使用方法
 

@@ -91,7 +91,24 @@ class Simulator:
                         placement_penalty = self.cluster.calculate_penalty(
                             task.allocated_gpus)
                         sharing_penalty = self._get_task_sharing_penalty(task)
-                        adjusted_duration = task.estimated_duration * placement_penalty * sharing_penalty
+
+                        # 弹性计算：
+                        # 假设 task.estimated_duration 是在 task.num_gpus 个 GPU 上的预期时间
+                        # 实际 GPU 数量 len(task.allocated_gpus)
+                        # 基本时间 = estimated_duration * (target_gpus / actual_gpus)
+                        # 假设线性加速比，如果分配的 GPU 少，时间变长
+
+                        target_gpus = task.num_gpus
+                        actual_gpus = len(task.allocated_gpus)
+
+                        # 避免除以0
+                        scale_factor = target_gpus / max(1, actual_gpus)
+
+                        # 修正：sharing_penalty 是效率系数 (如 0.9)，所以时间应该除以它
+                        # adjusted_duration = duration * placement_penalty / sharing_penalty
+                        adjusted_duration = (task.estimated_duration * scale_factor *
+                                             placement_penalty / max(0.01, sharing_penalty))
+
                         if elapsed >= adjusted_duration:
                             task.complete(self.current_time)
                             # 释放资源
@@ -110,6 +127,11 @@ class Simulator:
             if int(self.current_time) % int(self.config.timeline_interval) == 0:
                 self.metrics.record_timeline(self.current_time, self.cluster,
                                              running_tasks, pending_tasks)
+
+            # 定期打印进度 (防止用户以为卡死)
+            if int(self.current_time) % 3600 == 0 and self.current_time > 0:
+                print(f"模拟进行中... 当前时间: {self.current_time:.0f}s, "
+                      f"剩余任务: {len(pending_tasks)}, 运行中: {len(running_tasks)}")
 
             # 检查是否所有任务都完成或饿死
             all_done = all(t.status in [TaskStatus.COMPLETED, TaskStatus.STARVED]
