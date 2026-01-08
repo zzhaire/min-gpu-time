@@ -1,8 +1,5 @@
 """
-Scalability Experiment (Run-to-Completion):
-Varying number of tasks to test scheduler performance.
-Unlike the Stress Test, this runs until ALL tasks are completed (or hopelessly starved).
-This allows comparing the TRUE "Total GPU Time" required to process a fixed workload.
+补充运行缺失的实验数据
 """
 
 import sys
@@ -130,44 +127,18 @@ def run_experiment(scheduler_name, num_tasks, submission_window):
 
 def main():
     output_file = "results/scalability_completion.csv"
-    os.makedirs("results", exist_ok=True)
 
-    # Run-to-completion Scales
-    # Smaller scales than stress test because we wait for everything to finish
-    task_counts = [
-        50,
-        100,
-        150,
-        200,
-        250,
-        300,
-        350,
-        400,
-        450,
-        500,
-        550,
-        600,
-        650,
-        700,
-        750,
-        800,
-        850,
-        900,
-        950,
-        1000,
+    # 需要补充的实验
+    missing_experiments = [
+        (950, "min-gpu-time"),
+        (950, "first-fit"),
+        (1000, "pollux-patient"),
+        (1000, "pollux"),
+        (1000, "rack-aware"),
+        (1000, "min-gpu-time"),
+        (1000, "first-fit"),
     ]
 
-    # Fixed Density: 100 tasks per 1800s
-    # So window = N * 18.0
-
-    schedulers = ["pollux-patient", "pollux", "rack-aware", "min-gpu-time", "first-fit"]
-
-    print("=" * 60)
-    print("Starting Run-to-Completion Scalability Experiment")
-    print("Metric: Total Cost to process N tasks")
-    print("=" * 60)
-
-    # Initialize CSV
     fieldnames = [
         "Scheduler",
         "Num Tasks",
@@ -178,35 +149,35 @@ def main():
         "Total GPU Time",
         "Makespan",
     ]
-    with open(output_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
 
-    for n in task_counts:
+    print("=" * 60)
+    print("补充运行缺失的实验数据")
+    print("=" * 60)
+
+    for n, sched in missing_experiments:
         window = n * 18.0
-        print(f"\n[Workload N={n} tasks, Window={window:.0f}s]")
+        print(f"\n[补充实验: {sched} - {n} tasks, Window={window:.0f}s]")
 
-        for sched in schedulers:
-            try:
-                t0 = time.time()
-                metrics = run_experiment(sched, n, window)
-                duration = time.time() - t0
+        try:
+            t0 = time.time()
+            metrics = run_experiment(sched, n, window)
+            duration = time.time() - t0
 
-                print(
-                    f"  > {sched:<15}: GPU_Time={metrics['Total GPU Time']:,.0f}, JCT={metrics['Avg JCT']:.0f}s (Sim: {duration:.1f}s)"
-                )
+            print(
+                f"  > {sched:<15}: GPU_Time={metrics['Total GPU Time']:,.0f}, JCT={metrics['Avg JCT']:.0f}s (Sim: {duration:.1f}s)"
+            )
 
-                res = {"Scheduler": sched, "Num Tasks": n}
-                res.update(metrics)
+            res = {"Scheduler": sched, "Num Tasks": n}
+            res.update(metrics)
 
-                with open(output_file, "a", newline="", encoding="utf-8") as f:
-                    writer = csv.DictWriter(f, fieldnames=fieldnames)
-                    writer.writerow(res)
+            with open(output_file, "a", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writerow(res)
 
-            except Exception as e:
-                print(f"  > {sched:<15}: FAILED ({e})")
+        except Exception as e:
+            print(f"  > {sched:<15}: FAILED ({e})")
 
-    print("\nRun-to-Completion experiment completed. Results saved.")
+    print("\n补充实验完成。")
 
 
 if __name__ == "__main__":

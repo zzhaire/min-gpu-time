@@ -13,7 +13,8 @@ except:
 
 
 def plot_scalability_completion_detailed():
-    results_dir = "results"
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    results_dir = os.path.join(project_root, "results")
     csv_file = os.path.join(results_dir, "scalability_completion.csv")
     output_file = os.path.join(results_dir, "scalability_completion_detailed.png")
 
@@ -23,6 +24,15 @@ def plot_scalability_completion_detailed():
 
     print(f"Reading data from {csv_file}...")
     df = pd.read_csv(csv_file)
+
+    # Keep only the main experiment points: 50, 100, 200, 300, ..., 1000
+    main_points = [50, 100] + list(range(200, 1001, 100))
+    df = df[df["Num Tasks"].isin(main_points)].copy()
+
+    # Rename scheduler for paper
+    df["Scheduler"] = df["Scheduler"].replace(
+        {"pollux-patient": "Eco-Pollux (ours)"}
+    )
 
     # --- Data Preprocessing & New Metrics ---
     # Since this is run-to-completion, Completed Count is Num Tasks
@@ -95,7 +105,7 @@ def plot_scalability_completion_detailed():
 
     # Try to match previous specific colors if possible for consistency
     custom_palette = {
-        "pollux-patient": "#D62728",  # Red
+        "Eco-Pollux (ours)": "#D62728",  # Red
         "pollux": "#FF7F0E",  # Orange
         "min-gpu-time": "#2CA02C",  # Green
         "rack-aware": "#1F77B4",  # Blue
@@ -153,8 +163,8 @@ def plot_scalability_completion_detailed():
         ax.grid(True, linestyle="--", alpha=0.4, color="gray")
         ax.tick_params(axis="both", which="major", labelsize=10)
 
-        # Force integer x-ticks
-        ax.set_xticks(df["Num Tasks"].unique())
+        # Force x-ticks to main experiment points
+        ax.set_xticks(main_points)
 
         # Log scale logic
         if use_log:
@@ -183,7 +193,7 @@ def plot_scalability_completion_detailed():
     )
 
     plt.suptitle(
-        "Run-to-Completion Scalability: Pollux Patient vs Baselines",
+        "Run-to-Completion Scalability: Eco-Pollux (Ours) vs Baselines",
         fontsize=18,
         fontweight="bold",
         y=1.02,

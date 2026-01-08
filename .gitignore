@@ -5,3 +5,7 @@ results/
 *.log
 *.pt
 *.pth
+
+
+.DS_*
+.DS_Store
