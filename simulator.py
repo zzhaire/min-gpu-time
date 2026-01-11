@@ -81,44 +81,49 @@ class Simulator:
                 if task:
                     task.start(self.current_time, gpu_ids)
 
+            # 重要：调度后集群状态已变化（新任务已 RUNNING）。
+            # 重新获取运行中任务，避免出现“GPU 时间已累计但任务进度未推进”的偏差。
+            running_tasks = [
+                t for t in sorted_tasks if t.status == TaskStatus.RUNNING
+            ]
+
             # 更新运行中的任务
+            completed_tasks = []
+            next_time = self.current_time + self.time_step
             for task in running_tasks:
-                # 检查任务是否完成
-                if task.start_time is not None:
-                    elapsed = self.current_time - task.start_time
-                    # 考虑惩罚系数调整实际执行时间
-                    if task.allocated_gpus:
-                        placement_penalty = self.cluster.calculate_penalty(
-                            task.allocated_gpus)
-                        sharing_penalty = self._get_task_sharing_penalty(task)
+                if task.start_time is None:
+                    continue
+                if not task.allocated_gpus:
+                    continue
 
-                        # 弹性计算：
-                        # 假设 task.estimated_duration 是在 task.num_gpus 个 GPU 上的预期时间
-                        # 实际 GPU 数量 len(task.allocated_gpus)
-                        # 基本时间 = estimated_duration * (target_gpus / actual_gpus)
-                        # 假设线性加速比，如果分配的 GPU 少，时间变长
+                # 初始化剩余工作量（向后兼容：旧任务对象可能没有 remaining_work）
+                if task.remaining_work is None:
+                    task.remaining_work = task.estimated_duration * max(1, task.num_gpus)
 
-                        target_gpus = task.num_gpus
-                        actual_gpus = len(task.allocated_gpus)
+                placement_penalty = self.cluster.calculate_penalty(task.allocated_gpus)
+                sharing_efficiency = self._get_task_sharing_penalty(task)
 
-                        # 避免除以0
-                        scale_factor = target_gpus / max(1, actual_gpus)
+                actual_gpus = len(task.allocated_gpus)
+                effective_rate = (
+                    actual_gpus
+                    * max(0.0, sharing_efficiency)
+                    / max(1e-6, placement_penalty)
+                )
+                task.remaining_work -= self.time_step * effective_rate
 
-                        # 修正：sharing_penalty 是效率系数 (如 0.9)，所以时间应该除以它
-                        # adjusted_duration = duration * placement_penalty / sharing_penalty
-                        adjusted_duration = (task.estimated_duration * scale_factor *
-                                             placement_penalty / max(0.01, sharing_penalty))
-
-                        if elapsed >= adjusted_duration:
-                            task.complete(self.current_time)
-                            # 释放资源
-                            self.scheduler.deallocate(task)
-                            self.metrics.record_task_completion(task)
+                if task.remaining_work <= 0:
+                    completed_tasks.append(task)
 
             # 更新GPU时间
             for gpu in self.cluster.get_all_gpus():
                 if len(gpu.running_tasks) > 0:
                     gpu.add_time(self.time_step)
+
+            # 处理本时间步完成的任务（在计入本步 GPU 时间之后释放资源）
+            for task in completed_tasks:
+                task.complete(next_time)
+                self.scheduler.deallocate(task)
+                self.metrics.record_task_completion(task)
 
             # 更新总GPU时间
             self.metrics.update_total_gpu_time(self.cluster)

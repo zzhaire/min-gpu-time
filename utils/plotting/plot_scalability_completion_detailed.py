@@ -1,9 +1,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import os
 import numpy as np
 import sys
+import argparse
 
 # Set style for publication quality
 try:
@@ -16,12 +16,14 @@ plt.rcParams["pdf.fonttype"] = 42
 plt.rcParams["ps.fonttype"] = 42
 
 
-def plot_scalability_completion_detailed():
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+def plot_scalability_completion_detailed(csv_file=None, output_file=None, output_pdf=None):
+    project_root = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
     results_dir = os.path.join(project_root, "results")
-    csv_file = os.path.join(results_dir, "scalability_completion.csv")
-    output_file = os.path.join(results_dir, "scalability_completion_detailed.png")
-    output_pdf = os.path.join(results_dir, "scalability_completion_detailed.pdf")
+    csv_file = csv_file or os.path.join(results_dir, "scalability_completion.csv")
+    output_file = output_file or os.path.join(results_dir, "scalability_completion_detailed.png")
+    output_pdf = output_pdf or os.path.join(results_dir, "scalability_completion_detailed.pdf")
 
     if not os.path.exists(csv_file):
         print(f"Error: {csv_file} not found.")
@@ -30,8 +32,8 @@ def plot_scalability_completion_detailed():
     print(f"Reading data from {csv_file}...")
     df = pd.read_csv(csv_file)
 
-    # Keep only the main experiment points: 50, 100, 200, 300, ..., 1000
-    main_points = [50, 100] + list(range(200, 1001, 100))
+    # Keep only the main experiment points: 50, 100, 150, 200, 300, ..., 1000
+    main_points = [50, 100, 150] + list(range(200, 1001, 100))
     df = df[df["Num Tasks"].isin(main_points)].copy()
 
     # Rename scheduler for paper
@@ -104,9 +106,9 @@ def plot_scalability_completion_detailed():
 
     # Scheduler styling (consistent with previous plots)
     schedulers = df["Scheduler"].unique()
-    # Use a high-contrast palette
-    # Custom palette to ensure consistency if possible, or use seaborn deep
-    colors = sns.color_palette("deep", len(schedulers))
+    # Use a high-contrast palette (matplotlib built-in)
+    cmap = plt.get_cmap("tab10")
+    colors = [cmap(i % 10) for i in range(len(schedulers))]
 
     # Try to match previous specific colors if possible for consistency
     custom_palette = {
@@ -206,4 +208,14 @@ def plot_scalability_completion_detailed():
 
 
 if __name__ == "__main__":
-    plot_scalability_completion_detailed()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--csv", type=str, default=None)
+    parser.add_argument("--out-png", type=str, default=None)
+    parser.add_argument("--out-pdf", type=str, default=None)
+    args = parser.parse_args()
+
+    plot_scalability_completion_detailed(
+        csv_file=args.csv,
+        output_file=args.out_png,
+        output_pdf=args.out_pdf,
+    )

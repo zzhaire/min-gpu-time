@@ -1,11 +1,10 @@
 # Ignore all __pycache__ directories anywhere in the project
 __pycache__/
 *.pyc
-results/
 *.log
 *.pt
 *.pth
-
+*.pdf
 
 .DS_*
 .DS_Store
