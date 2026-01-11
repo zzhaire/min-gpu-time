@@ -11,12 +11,17 @@ try:
 except:
     plt.style.use("ggplot")
 
+# Improve PDF export quality (vector text)
+plt.rcParams["pdf.fonttype"] = 42
+plt.rcParams["ps.fonttype"] = 42
+
 
 def plot_scalability_completion_detailed():
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     results_dir = os.path.join(project_root, "results")
     csv_file = os.path.join(results_dir, "scalability_completion.csv")
     output_file = os.path.join(results_dir, "scalability_completion_detailed.png")
+    output_pdf = os.path.join(results_dir, "scalability_completion_detailed.pdf")
 
     if not os.path.exists(csv_file):
         print(f"Error: {csv_file} not found.")
@@ -131,7 +136,7 @@ def plot_scalability_completion_detailed():
     }
 
     # Create Figure
-    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
+    fig, axes = plt.subplots(2, 3, figsize=(20, 11))
     axes = axes.flatten()
 
     for idx, (metric, unit, title, use_log) in enumerate(metrics_config):
@@ -157,11 +162,11 @@ def plot_scalability_completion_detailed():
                 alpha=0.85,
             )
 
-        ax.set_title(title, fontsize=14, fontweight="bold", pad=10)
-        ax.set_xlabel("Load (Number of Tasks)", fontsize=12)
-        ax.set_ylabel(unit, fontsize=12)
+        ax.set_title(title, fontsize=16, fontweight="bold", pad=10)
+        ax.set_xlabel("Load (Number of Tasks)", fontsize=14)
+        ax.set_ylabel(unit, fontsize=14)
         ax.grid(True, linestyle="--", alpha=0.4, color="gray")
-        ax.tick_params(axis="both", which="major", labelsize=10)
+        ax.tick_params(axis="both", which="major", labelsize=12)
 
         # Force x-ticks to main experiment points
         ax.set_xticks(main_points)
@@ -172,7 +177,7 @@ def plot_scalability_completion_detailed():
             ymin, ymax = ax.get_ylim()
             if ymin > 0 and ymax / ymin > 20:  # If dynamic range is large
                 ax.set_yscale("log")
-                ax.set_ylabel(unit + " (Log Scale)", fontsize=12)
+                ax.set_ylabel(unit + " (Log Scale)", fontsize=14)
 
         # Special formatting for large numbers
         if metric in ["Total GPU Time", "Makespan", "Avg JCT", "Cost Per Task"]:
@@ -192,15 +197,12 @@ def plot_scalability_completion_detailed():
         fancybox=False,
     )
 
-    plt.suptitle(
-        "Run-to-Completion Scalability: Eco-Pollux (Ours) vs Baselines",
-        fontsize=18,
-        fontweight="bold",
-        y=1.02,
-    )
     plt.tight_layout()
+
     plt.savefig(output_file, dpi=300, bbox_inches="tight")
+    plt.savefig(output_pdf, bbox_inches="tight")
     print(f"\nPlot saved to {output_file}")
+    print(f"Plot saved to {output_pdf}")
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ import sys
 import os
 import csv
 import time
+import argparse
 import numpy as np
 from copy import deepcopy
 
@@ -34,7 +35,7 @@ from schedulers import (
 from core.cluster import Cluster
 
 
-def run_experiment(scheduler_name, num_tasks, submission_window):
+def run_experiment(scheduler_name, num_tasks, submission_window, seed_anchor_n=None):
     """Run a single experiment with a specific number of tasks until completion"""
 
     # 1. Configure
@@ -78,7 +79,10 @@ def run_experiment(scheduler_name, num_tasks, submission_window):
         raise ValueError(f"Unknown scheduler: {scheduler_name}")
 
     # 4. Generate Tasks
-    gen = TaskGenerator(seed=42 + num_tasks)
+    seed_n = num_tasks
+    if seed_anchor_n is not None and num_tasks == 1000:
+        seed_n = seed_anchor_n
+    gen = TaskGenerator(seed=42 + seed_n)
     tasks = gen.generate_tasks(
         num_tasks=num_tasks,
         min_gpus=default_task_config.min_gpus,
@@ -128,9 +132,33 @@ def run_experiment(scheduler_name, num_tasks, submission_window):
     }
 
 
+def _load_existing_rows(path):
+    if not os.path.exists(path):
+        return []
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return list(reader)
+
+
+def _write_rows(path, fieldnames, rows):
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for r in rows:
+            writer.writerow(r)
+
+
 def main():
-    output_file = "results/scalability_completion.csv"
-    os.makedirs("results", exist_ok=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", type=str, default="results/scalability_completion.csv")
+    parser.add_argument("--only-n", type=int, default=None)
+    parser.add_argument("--update-existing", action="store_true")
+    parser.add_argument("--seed-anchor-n", type=int, default=None)
+    args = parser.parse_args()
+
+    output_file = args.output
+    os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
 
     # Run-to-completion Scales
     # Smaller scales than stress test because we wait for everything to finish
@@ -157,6 +185,9 @@ def main():
         1000,
     ]
 
+    if args.only_n is not None:
+        task_counts = [args.only_n]
+
     # Fixed Density: 100 tasks per 1800s
     # So window = N * 18.0
 
@@ -167,7 +198,6 @@ def main():
     print("Metric: Total Cost to process N tasks")
     print("=" * 60)
 
-    # Initialize CSV
     fieldnames = [
         "Scheduler",
         "Num Tasks",
@@ -178,9 +208,10 @@ def main():
         "Total GPU Time",
         "Makespan",
     ]
-    with open(output_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
+
+    existing_rows = []
+    if args.update_existing:
+        existing_rows = _load_existing_rows(output_file)
 
     for n in task_counts:
         window = n * 18.0
@@ -189,7 +220,9 @@ def main():
         for sched in schedulers:
             try:
                 t0 = time.time()
-                metrics = run_experiment(sched, n, window)
+                metrics = run_experiment(
+                    sched, n, window, seed_anchor_n=args.seed_anchor_n
+                )
                 duration = time.time() - t0
 
                 print(
@@ -199,12 +232,36 @@ def main():
                 res = {"Scheduler": sched, "Num Tasks": n}
                 res.update(metrics)
 
-                with open(output_file, "a", newline="", encoding="utf-8") as f:
-                    writer = csv.DictWriter(f, fieldnames=fieldnames)
-                    writer.writerow(res)
+                if args.update_existing:
+                    existing_rows = [
+                        r
+                        for r in existing_rows
+                        if not (
+                            str(r.get("Scheduler")) == str(sched)
+                            and int(float(r.get("Num Tasks", 0))) == int(n)
+                        )
+                    ]
+                    existing_rows.append({k: res.get(k, "") for k in fieldnames})
+                else:
+                    if os.path.exists(output_file):
+                        rows = _load_existing_rows(output_file)
+                    else:
+                        rows = []
+                    rows.append({k: res.get(k, "") for k in fieldnames})
+                    _write_rows(output_file, fieldnames, rows)
 
             except Exception as e:
                 print(f"  > {sched:<15}: FAILED ({e})")
+
+    if args.update_existing:
+        def _sort_key(r):
+            try:
+                return (str(r.get("Scheduler")), int(float(r.get("Num Tasks", 0))))
+            except Exception:
+                return (str(r.get("Scheduler")), 0)
+
+        existing_rows.sort(key=_sort_key)
+        _write_rows(output_file, fieldnames, existing_rows)
 
     print("\nRun-to-Completion experiment completed. Results saved.")
 
