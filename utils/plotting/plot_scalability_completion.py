@@ -1,11 +1,19 @@
 import pandas as pd
-import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import os
 
+try:
+    import seaborn as sns
+
+    _HAVE_SEABORN = True
+except Exception:
+    sns = None
+    _HAVE_SEABORN = False
+
 # Set style
-sns.set_theme(style="whitegrid", context="paper", font_scale=1.4)
+if _HAVE_SEABORN:
+    sns.set_theme(style="whitegrid", context="paper", font_scale=1.4)
 plt.rcParams["font.family"] = "sans-serif"
 plt.rcParams["axes.titlesize"] = 16
 plt.rcParams["axes.labelsize"] = 14
@@ -20,12 +28,15 @@ def plot_scalability_completion(csv_path, output_path):
     print(f"Reading data from {csv_path}...")
     df = pd.read_csv(csv_path)
 
+    # Rename scheduler for paper
+    df["Scheduler"] = df["Scheduler"].replace({"pollux-patient": "Eco-Pollux (Ours)"})
+
     # Filter schedulers if needed (optional, keeping all for now)
     schedulers = df["Scheduler"].unique()
 
     # Define colors
     palette = {
-        "pollux-patient": "#D62728",  # Red
+        "Eco-Pollux (Ours)": "#D62728",  # Red
         "pollux": "#FF7F0E",  # Orange
         "min-gpu-time": "#2CA02C",  # Green
         "rack-aware": "#1F77B4",  # Blue
@@ -35,7 +46,7 @@ def plot_scalability_completion(csv_path, output_path):
 
     # Markers
     markers = {
-        "pollux-patient": "o",
+        "Eco-Pollux (Ours)": "o",
         "pollux": "s",
         "min-gpu-time": "^",
         "rack-aware": "D",
@@ -56,18 +67,32 @@ def plot_scalability_completion(csv_path, output_path):
     for i, (col, ylabel, title) in enumerate(metrics):
         ax = axes[i]
 
-        sns.lineplot(
-            data=df,
-            x="Num Tasks",
-            y=col,
-            hue="Scheduler",
-            style="Scheduler",
-            palette=palette,
-            markers=markers,
-            dashes=False,
-            ax=ax,
-            legend=(i == 2),  # Only show legend on last plot
-        )
+        if _HAVE_SEABORN:
+            sns.lineplot(
+                data=df,
+                x="Num Tasks",
+                y=col,
+                hue="Scheduler",
+                style="Scheduler",
+                palette=palette,
+                markers=markers,
+                dashes=False,
+                ax=ax,
+                legend=(i == 2),  # Only show legend on last plot
+            )
+        else:
+            for sched in df["Scheduler"].unique():
+                data = df[df["Scheduler"] == sched].sort_values("Num Tasks")
+                ax.plot(
+                    data["Num Tasks"],
+                    data[col],
+                    label=sched if i == 2 else None,
+                    color=palette.get(sched, "#333333"),
+                    marker=markers.get(sched, "o"),
+                    linewidth=2.5,
+                    markersize=9,
+                    alpha=0.9,
+                )
 
         ax.set_title(title, fontweight="bold", pad=15)
         ax.set_xlabel("Number of Tasks", fontweight="bold")

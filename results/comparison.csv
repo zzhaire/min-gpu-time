@@ -1,0 +1,7 @@
+Scheduler,Total Tasks,Completed,Starved,Total GPU Time (s),Avg JCT (s),Avg Wait (s)
+best_fit,100,100,0,1320022.00,8865.98,4514.69
+first_fit,100,100,0,1342273.00,9237.42,4767.73
+min_gpu_time,100,100,0,1288075.00,10080.67,6010.87
+pollux,100,100,0,654237.00,6040.84,951.89
+pollux_patient,100,100,0,522729.00,8416.01,0.49
+rack_aware,100,100,0,1278069.00,8156.41,4126.33

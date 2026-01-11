@@ -29,6 +29,7 @@ class Task:
     completion_time: Optional[float] = None  # 完成时间
     allocated_gpus: List[str] = field(default_factory=list)  # 分配的GPU ID列表
     actual_duration: Optional[float] = None  # 实际执行时间
+    remaining_work: Optional[float] = None  # 剩余工作量（以“理想 GPU-秒”计）
     
     def get_total_memory_required(self) -> float:
         """获取总内存需求"""
@@ -55,6 +56,9 @@ class Task:
         self.status = TaskStatus.RUNNING
         self.start_time = current_time
         self.allocated_gpus = allocated_gpus
+        # 以理想线性加速的 GPU-秒作为“工作量”单位：
+        # estimated_duration 被视为在 num_gpus 个 GPU、无惩罚/无共享情况下的时间。
+        self.remaining_work = self.estimated_duration * max(1, self.num_gpus)
     
     def complete(self, current_time: float):
         """完成任务"""

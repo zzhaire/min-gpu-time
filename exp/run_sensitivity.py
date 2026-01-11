@@ -9,7 +9,8 @@ import csv
 from copy import deepcopy
 
 # 添加项目根目录到路径
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 
 from config.config import (
     default_cluster_config,

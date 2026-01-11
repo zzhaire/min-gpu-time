@@ -1,0 +1,10 @@
+Scheduler,Param,Total GPU Time,Avg JCT,Type
+rack-aware,N/A,1116932.0,7273.270229161079,Baseline
+min-gpu-time,N/A,1177183.0,9237.860229161079,Baseline
+first-fit,N/A,1237039.0,8136.320229161079,Baseline
+pollux,N/A,585544.0,5378.910229161079,Baseline
+pollux-patient,P=1.0,471966.0,7823.990229161079,Ours
+pollux-patient,P=1.2,471966.0,7823.990229161079,Ours
+pollux-patient,P=1.5,557345.0,5219.820229161079,Ours
+pollux-patient,P=2.2,604801.0,5825.030229161079,Ours
+pollux-patient,P=100.0,604801.0,5825.030229161079,Ours

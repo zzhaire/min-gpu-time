@@ -35,8 +35,10 @@ from schedulers import (
 from core.cluster import Cluster
 
 
-def run_experiment(scheduler_name, num_tasks, submission_window, seed_anchor_n=None):
+def run_experiment(scheduler_name, tasks):
     """Run a single experiment with a specific number of tasks until completion"""
+
+    num_tasks = len(tasks)
 
     # 1. Configure
     cluster_config = default_cluster_config
@@ -78,23 +80,7 @@ def run_experiment(scheduler_name, num_tasks, submission_window, seed_anchor_n=N
     else:
         raise ValueError(f"Unknown scheduler: {scheduler_name}")
 
-    # 4. Generate Tasks
-    seed_n = num_tasks
-    if seed_anchor_n is not None and num_tasks == 1000:
-        seed_n = seed_anchor_n
-    gen = TaskGenerator(seed=42 + seed_n)
-    tasks = gen.generate_tasks(
-        num_tasks=num_tasks,
-        min_gpus=default_task_config.min_gpus,
-        max_gpus=default_task_config.max_gpus,
-        min_memory=default_task_config.min_memory,
-        max_memory=default_task_config.max_memory,
-        min_duration=default_task_config.min_duration,
-        max_duration=default_task_config.max_duration,
-        submission_window=submission_window,
-    )
-
-    # 5. Run
+    # 4. Run
     simulator = Simulator(cluster, scheduler, simulator_config)
     metrics = simulator.run(tasks)
 
@@ -153,6 +139,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=str, default="results/scalability_completion.csv")
     parser.add_argument("--only-n", type=int, default=None)
+    parser.add_argument("--n-list", type=str, default=None)
+    parser.add_argument("--base-n", type=int, default=None)
     parser.add_argument("--update-existing", action="store_true")
     parser.add_argument("--seed-anchor-n", type=int, default=None)
     args = parser.parse_args()
@@ -160,36 +148,57 @@ def main():
     output_file = args.output
     os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
 
+    # If this is a fresh run, avoid mixing old/new results by backing up the
+    # existing output file.
+    if (not args.update_existing) and os.path.exists(output_file):
+        ts = int(time.time())
+        backup_path = f"{output_file}.bak_{ts}"
+        os.rename(output_file, backup_path)
+        print(f"[Info] Existing output backed up to: {backup_path}")
+
     # Run-to-completion Scales
     # Smaller scales than stress test because we wait for everything to finish
     task_counts = [
         50,
         100,
-        150,
         200,
-        250,
         300,
-        350,
         400,
-        450,
         500,
-        550,
         600,
-        650,
         700,
-        750,
         800,
-        850,
         900,
-        950,
         1000,
     ]
 
-    if args.only_n is not None:
+    if args.n_list is not None:
+        task_counts = [int(x.strip()) for x in args.n_list.split(",") if x.strip()]
+    elif args.only_n is not None:
         task_counts = [args.only_n]
 
     # Fixed Density: 100 tasks per 1800s
     # So window = N * 18.0
+
+    # Scheme A (Nested workload):
+    # Generate ONE base workload at max N, then for each N use the first N tasks.
+    # To keep the same arrival density, scale submission_time by (N / max_N).
+    base_n = args.base_n if args.base_n is not None else max(task_counts)
+    if base_n < max(task_counts):
+        raise ValueError("--base-n must be >= max(task_counts)")
+    base_window = base_n * 18.0
+    base_seed_n = args.seed_anchor_n if args.seed_anchor_n is not None else base_n
+    gen = TaskGenerator(seed=42 + base_seed_n)
+    base_tasks = gen.generate_tasks(
+        num_tasks=base_n,
+        min_gpus=default_task_config.min_gpus,
+        max_gpus=default_task_config.max_gpus,
+        min_memory=default_task_config.min_memory,
+        max_memory=default_task_config.max_memory,
+        min_duration=default_task_config.min_duration,
+        max_duration=default_task_config.max_duration,
+        submission_window=base_window,
+    )
 
     schedulers = ["pollux-patient", "pollux", "rack-aware", "min-gpu-time", "first-fit"]
 
@@ -217,12 +226,15 @@ def main():
         window = n * 18.0
         print(f"\n[Workload N={n} tasks, Window={window:.0f}s]")
 
+        scale = 0.0 if base_window <= 0 else (window / base_window)
+        tasks_n = deepcopy(base_tasks[:n])
+        for t in tasks_n:
+            t.submission_time = min(window, t.submission_time * scale)
+
         for sched in schedulers:
             try:
                 t0 = time.time()
-                metrics = run_experiment(
-                    sched, n, window, seed_anchor_n=args.seed_anchor_n
-                )
+                metrics = run_experiment(sched, deepcopy(tasks_n))
                 duration = time.time() - t0
 
                 print(

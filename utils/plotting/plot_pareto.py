@@ -1,10 +1,24 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 import os
+from utils.plotting.colors import get_scheduler_color, get_scheduler_display_name
 
-# Set style
+# ============== 可调参数 (Parameters) ==============
+# Patience 标注位置 (dx, dy) - offset points
+PATIENCE_POS_1 = (10, 10)  # Patience < δ_intra
+PATIENCE_POS_2 = (0, -20)  # δ_intra ≤ Patience < δ_inter
+PATIENCE_POS_3 = (18, 0)  # Patience ≥ δ_inter
+# ===================================================
+
+try:
+    import seaborn as sns
+
+    _HAVE_SEABORN = True
+except Exception:
+    sns = None
+    _HAVE_SEABORN = False
+
 try:
     plt.style.use("seaborn-v0_8-whitegrid")
 except:
@@ -12,9 +26,13 @@ except:
 
 
 def main():
-    results_dir = "results"
+    project_root = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
+    results_dir = os.path.join(project_root, "results")
     csv_file = os.path.join(results_dir, "pareto_frontier.csv")
     output_file = os.path.join(results_dir, "pareto_frontier.png")
+    output_pdf = os.path.join(results_dir, "pareto_frontier.pdf")
 
     if not os.path.exists(csv_file):
         print(f"Error: {csv_file} not found.")
@@ -25,90 +43,182 @@ def main():
     # Calculate Cost ($)
     # Assumption: $3 per GPU-Hour
     gpu_price_per_hour = 3.0
+
+    # Topology penalty thresholds (from default config)
+    delta_intra = 1.4
+    delta_inter = 2.1
     df["Cost"] = (df["Total GPU Time"] / 3600.0) * gpu_price_per_hour
 
-    plt.figure(figsize=(10, 8))
+    # Improve PDF export quality (vector text)
+    plt.rcParams["pdf.fonttype"] = 42
+    plt.rcParams["ps.fonttype"] = 42
+    plt.rcParams["font.family"] = "sans-serif"
+    plt.rcParams["font.sans-serif"] = ["DejaVu Sans", "Arial", "Helvetica"]
+
+    fig, ax = plt.subplots(figsize=(8, 6), constrained_layout=True)
 
     # Plot Baselines
     baselines = df[df["Type"] == "Baseline"]
-    # Define markers/colors for baselines
+    # Define markers for baselines，颜色统一用全局配置的 get_scheduler_color
     baseline_markers = {
-        "rack-aware": ("s", "blue"),
-        "min-gpu-time": ("^", "purple"),
-        "first-fit": ("v", "gray"),
-        "pollux": ("D", "orange"),
+        "rack_aware": "s",
+        "min_gpu_time": "^",
+        "first_fit": "v",
+        "pollux": "D",
     }
 
     for _, row in baselines.iterrows():
-        sched = row["Scheduler"]
-        marker, color = baseline_markers.get(sched, ("o", "black"))
-        plt.scatter(
+        sched = row["Scheduler"]  # 例如 'rack-aware', 'min-gpu-time'
+        norm_key = sched.lower().replace("-", "_")
+        marker = baseline_markers.get(norm_key, "o")
+        color = get_scheduler_color(sched)
+        display_name = get_scheduler_display_name(sched)
+        ax.scatter(
             row["Cost"],
             row["Avg JCT"],
-            label=f"{sched} (Baseline)",
+            label=display_name,
             marker=marker,
             color=color,
-            s=100,
+            s=250,
             zorder=10,
             edgecolors="black",
+            linewidths=1.5,
         )
 
         # Annotate
-        plt.text(
-            row["Cost"],
-            row["Avg JCT"] + 150,
-            sched,
-            fontsize=9,
-            ha="center",
+        ax.annotate(
+            display_name,
+            xy=(row["Cost"], row["Avg JCT"]),
+            xytext=(8, 10),
+            textcoords="offset points",
+            fontsize=12,
+            ha="left",
             va="bottom",
             fontweight="bold",
+            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.75),
+            zorder=20,
         )
 
-    # Plot Ours (Pollux Patient)
-    ours = df[df["Type"] == "Ours"].sort_values("Cost")
-    plt.plot(
-        ours["Cost"],
-        ours["Avg JCT"],
-        color="green",
-        linestyle="--",
-        alpha=0.5,
-        zorder=5,
-        label="Pareto Frontier (Ours)",
+    # Plot Ours (PACE)
+    ours = df[df["Type"] == "Ours"].copy()
+    if not ours.empty:
+        ours["Patience"] = ours["Param"].astype(str).str.replace("P=", "", regex=False)
+        ours["Patience"] = pd.to_numeric(ours["Patience"], errors="coerce")
+
+    # Group identical points so dense sweeps remain readable.
+    # (Many Patience values can yield the same outcome due to topology thresholds.)
+    grouped_rows = []
+    if not ours.empty:
+        for (tgt, jct), g in ours.groupby(["Total GPU Time", "Avg JCT"], dropna=False):
+            pats = [p for p in g["Patience"].tolist() if pd.notna(p)]
+            pats_sorted = sorted(pats)
+
+            if pats_sorted:
+                pmin = pats_sorted[0]
+                pmax = pats_sorted[-1]
+
+                # Label by regime instead of concrete values.
+                if pmax < delta_intra:
+                    label = "Patience < δ_intra"
+                elif pmin >= delta_inter:
+                    label = "Patience ≥ δ_inter"
+                else:
+                    label = "δ_intra ≤ Patience < δ_inter"
+            else:
+                label = "Patience=N/A"
+
+            cost_dollars = (float(tgt) / 3600.0) * gpu_price_per_hour
+            grouped_rows.append(
+                {
+                    "Total GPU Time": float(tgt),
+                    "Avg JCT": float(jct),
+                    "Cost": cost_dollars,
+                    "Label": label,
+                    "PatienceMin": float(pmin) if pats_sorted else float("nan"),
+                    "PatienceMax": float(pmax) if pats_sorted else float("nan"),
+                }
+            )
+
+    ours_u = (
+        pd.DataFrame(grouped_rows).sort_values("Cost")
+        if grouped_rows
+        else pd.DataFrame()
     )
 
-    plt.scatter(
-        ours["Cost"],
-        ours["Avg JCT"],
-        label="Pollux Patient (Ours)",
-        marker="o",
-        color="green",
-        s=120,
-        zorder=10,
-        edgecolors="black",
-    )
+    # PACE color
+    pace_color = get_scheduler_color("pollux_patient")
 
-    # Annotate Our Points
-    for _, row in ours.iterrows():
-        param = row["Param"]
-        # Simplified label: P=1.5
-        label = param.replace("P=", "Patience=")
-        plt.text(
-            row["Cost"],
-            row["Avg JCT"] - 250,
-            label,
-            fontsize=9,
-            ha="center",
-            va="top",
-            color="green",
-            fontweight="bold",
+    if not ours_u.empty:
+        ax.plot(
+            ours_u["Cost"],
+            ours_u["Avg JCT"],
+            color=pace_color,
+            linestyle="--",
+            alpha=0.6,
+            zorder=5,
+            label="Pareto Frontier (PACE)",
         )
+
+        ax.scatter(
+            ours_u["Cost"],
+            ours_u["Avg JCT"],
+            label="PACE (Ours)",
+            marker="o",
+            color=pace_color,
+            s=280,
+            zorder=10,
+            edgecolors="black",
+            linewidths=1.5,
+        )
+
+    # Annotate Our (Unique) Points
+    if not ours_u.empty:
+        y_min = float(np.nanmin(df["Avg JCT"])) if len(df) else 0.0
+        y_max = float(np.nanmax(df["Avg JCT"])) if len(df) else 0.0
+        y_span = max(1.0, y_max - y_min)
+
+        # 使用顶部参数
+        offsets = [PATIENCE_POS_1, PATIENCE_POS_2, PATIENCE_POS_3]
+
+        for i, (_, row) in enumerate(ours_u.iterrows()):
+            dx, dy = offsets[i % len(offsets)]
+            ax.annotate(
+                row["Label"],
+                xy=(row["Cost"], row["Avg JCT"]),
+                xytext=(dx, dy),
+                textcoords="offset points",
+                fontsize=12,
+                ha="left" if dx >= 0 else "right",
+                va="bottom" if dy >= 0 else "top",
+                color=pace_color,
+                fontweight="bold",
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.75),
+                zorder=30,
+            )
 
     # Formatting
-    plt.xlabel("Total Cloud Cost ($) [@ $3/GPU-hr]", fontsize=12)
-    plt.ylabel("Average Job Completion Time (s) [Lower is Better]", fontsize=12)
-    plt.title('Cost-Speed Pareto Frontier: The "Sweet Spot"', fontsize=14)
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.legend(loc="best", frameon=True, framealpha=0.9)
+    ax.set_xlabel("Total Cloud Cost ($) [@ $3/GPU-hr]", fontsize=15)
+    ax.set_ylabel("Average Job Completion Time (s) [Lower is Better]", fontsize=15)
+    ax.set_title('Cost-Speed Pareto Frontier: The "Sweet Spot"', fontsize=17)
+    ax.grid(True, linestyle="--", alpha=0.5)
+
+    # Give the plot more breathing room
+    ax.margins(x=0.08, y=0.12)
+
+    # Legend inside (upper-left) with better spacing
+    legend = ax.legend(
+        loc="upper left",
+        frameon=True,
+        framealpha=0.9,
+        facecolor="white",
+        edgecolor="lightgray",
+        fontsize=11,
+        labelspacing=0.8,  # 行距
+        handletextpad=0.8,
+    )
+    # 加粗图例文字
+    for text in legend.get_texts():
+        text.set_fontweight("bold")
 
     # Invert X axis? No, lower cost is better (left). Lower JCT is better (bottom).
     # Ideal point is Bottom-Left.
@@ -122,9 +232,10 @@ def main():
     # Optional: Highlight the optimal region
     # plt.axvspan(min(ours['Cost']), max(ours['Cost']), color='green', alpha=0.05)
 
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=300)
+    plt.savefig(output_file, dpi=300, bbox_inches="tight")
+    plt.savefig(output_pdf, bbox_inches="tight")
     print(f"Pareto plot saved to {output_file}")
+    print(f"Pareto plot saved to {output_pdf}")
 
 
 if __name__ == "__main__":

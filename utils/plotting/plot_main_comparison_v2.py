@@ -1,8 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import os
 import numpy as np
+from utils.plotting.colors import get_scheduler_color, get_scheduler_display_name
 
 # Set style for publication quality
 try:
@@ -14,13 +14,41 @@ except:
 def plot_main_comparison():
     results_dir = "results"
     csv_file = os.path.join(results_dir, "comparison-main.csv")
+    fallback_csv = os.path.join(results_dir, "comparison.csv")
+    scalability_csv = os.path.join(results_dir, "scalability_completion.csv")
     output_file = os.path.join(results_dir, "main_comparison_metrics.png")
 
-    if not os.path.exists(csv_file):
+    df = None
+    if os.path.exists(csv_file):
+        df = pd.read_csv(csv_file)
+    elif os.path.exists(scalability_csv):
+        # Prefer Experiment 1 results for the main comparison summary.
+        # Default to the high-load setting (N=1000).
+        sc = pd.read_csv(scalability_csv)
+        sc = sc[sc["Num Tasks"] == 1000].copy()
+        if sc.empty:
+            print(f"Error: no rows with Num Tasks == 1000 in {scalability_csv}")
+            return
+
+        # Normalize scheduler naming to match the rest of the plotting scripts.
+        sc["Scheduler"] = sc["Scheduler"].astype(str).str.replace("-", "_", regex=False)
+
+        df = pd.DataFrame(
+            {
+                "Scheduler": sc["Scheduler"],
+                "Total GPU Time (s)": sc["Total GPU Time"],
+                "Avg JCT (s)": sc["Avg JCT"],
+                "Avg Wait (s)": sc["Avg Wait"],
+                "Cost Per Task (GPU-s)": sc["Total GPU Time"] / sc["Num Tasks"],
+            }
+        )
+        n_for_title = 1000
+    elif os.path.exists(fallback_csv):
+        df = pd.read_csv(fallback_csv)
+        n_for_title = None
+    else:
         print(f"Error: {csv_file} not found.")
         return
-
-    df = pd.read_csv(csv_file)
 
     # Filter schedulers if needed, or keep all
     # df = df[df['Scheduler'].isin(['pollux_patient', 'pollux', 'rack_aware', 'min_gpu_time'])]
@@ -30,16 +58,8 @@ def plot_main_comparison():
     # Sorting by Total GPU Time makes sense to show the "ranking".
     df = df.sort_values("Total GPU Time (s)", ascending=True)
 
-    # Clean up names
-    name_map = {
-        "pollux_patient": "Pollux Patient\n(Ours)",
-        "pollux": "Pollux",
-        "rack_aware": "Rack Aware",
-        "min_gpu_time": "Min GPU Time",
-        "first_fit": "First Fit",
-        "best_fit": "Best Fit",
-    }
-    df["Display Name"] = df["Scheduler"].map(name_map)
+    # Clean up names - 使用全局配置
+    df["Display Name"] = df["Scheduler"].apply(get_scheduler_display_name)
 
     # Metrics configuration
     # (Metric Column, Title, Y-Label, Color Palette Base)
@@ -57,29 +77,21 @@ def plot_main_comparison():
             "Blues",
         ),
         ("Avg Wait (s)", "Avg Wait Time", "Seconds (Lower is Better)", "Reds"),
-        ("Completed", "Completion Rate", "Tasks Completed (Max 100)", "Greys"),
+        (
+            "Cost Per Task (GPU-s)",
+            "Cost Per Task",
+            "GPU-Seconds / Task (Lower is Better)",
+            "Purples",
+        ),
     ]
 
-    fig, axes = plt.subplots(1, 4, figsize=(20, 6))
+    fig, axes = plt.subplots(1, 4, figsize=(22, 6))
 
     for idx, (col, title, ylabel, cmap_name) in enumerate(metrics_config):
         ax = axes[idx]
 
-        # Prepare colors
-        # We want to highlight 'Pollux Patient (Ours)'
-        # Let's use a specific color for Ours and a neutral one for others,
-        # OR use the cmap but force Ours to be distinct.
-
-        bar_colors = []
-        for sched in df["Scheduler"]:
-            if sched == "pollux_patient":
-                bar_colors.append("#2ca02c")  # Strong Green
-            elif sched == "pollux":
-                bar_colors.append("#ff7f0e")  # Orange
-            elif sched == "rack_aware":
-                bar_colors.append("#1f77b4")  # Blue
-            else:
-                bar_colors.append("#bdc3c7")  # Gray
+        # 使用全局颜色配置
+        bar_colors = [get_scheduler_color(sched) for sched in df["Scheduler"]]
 
         bars = ax.bar(
             df["Display Name"],
@@ -95,8 +107,6 @@ def plot_main_comparison():
         for bar in bars:
             height = bar.get_height()
             val_str = f"{height:,.0f}" if height > 100 else f"{height:.1f}"
-            if col == "Completed":
-                val_str = f"{int(height)}"
 
             ax.text(
                 bar.get_x() + bar.get_width() / 2.0,
@@ -143,18 +153,19 @@ def plot_main_comparison():
                             connectionstyle="arc3,rad=.2",
                         ),
                         fontsize=10,
-                        color="#2ca02c",
+                        color="#F47F72",
                         fontweight="bold",
                         bbox=dict(
                             boxstyle="round,pad=0.3",
                             fc="white",
-                            ec="#2ca02c",
+                            ec="#F47F72",
                             alpha=0.9,
                         ),
                     )
 
+    title_suffix = f" (N={int(n_for_title)})" if n_for_title is not None else ""
     plt.suptitle(
-        "Main Experiment Results: Efficiency & Performance (N=100)",
+        f"Main Experiment Results: Efficiency & Performance{title_suffix}",
         fontsize=16,
         fontweight="bold",
         y=1.05,

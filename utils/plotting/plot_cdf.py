@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import glob
+from utils.plotting.colors import get_scheduler_color, get_scheduler_display_name
 
 # Set style
 try:
@@ -19,30 +20,35 @@ def get_cdf(data):
 
 
 def main():
-    results_dir = "results"
-    output_file = os.path.join(results_dir, "jct_cdf.png")
+    project_root = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
+    results_dir = os.path.join(project_root, "results")
+    output_png = os.path.join(results_dir, "jct_cdf.png")
+    output_pdf = os.path.join(results_dir, "jct_cdf.pdf")
 
-    # Schedulers to plot and their display names
-    schedulers = {
-        "pollux_patient": "Pollux Patient",
-        "pollux": "Pollux",
-        "rack_aware": "Rack Aware",
-        "min_gpu_time": "Min GPU Time",
-        "first_fit": "First Fit",
-        "best_fit": "Best Fit",
-    }
+    # Schedulers to plot and their display names - 使用全局配置
+    # 直接使用全局颜色和标签配置
+    scheduler_keys = [
+        "pollux_patient",
+        "pollux",
+        "rack_aware",
+        "min_gpu_time",
+        "first_fit",
+    ]
 
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(8, 5))
 
-    # Use a colormap
-    colors = plt.cm.tab10(np.linspace(0, 1, len(schedulers)))
+    # 使用全局颜色配置
+    scheduler_display_names = {k: get_scheduler_display_name(k) for k in scheduler_keys}
 
     print(
         f"{'Scheduler':<20} {'Avg JCT':<10} {'Median':<10} {'P99 JCT':<10} {'Max JCT':<10}"
     )
     print("-" * 65)
 
-    for idx, (scheduler_key, label) in enumerate(schedulers.items()):
+    for idx, scheduler_key in enumerate(scheduler_keys):
+        label = get_scheduler_display_name(scheduler_key)
         file_path = os.path.join(results_dir, f"tasks_{scheduler_key}.csv")
 
         if not os.path.exists(file_path):
@@ -50,12 +56,12 @@ def main():
             continue
 
         try:
-            df = pd.read_csv(file_path)
-            if "jct" not in df.columns:
+            df_task = pd.read_csv(file_path)
+            if "jct" not in df_task.columns:
                 print(f"Warning: 'jct' column not found in {file_path}. Skipping.")
                 continue
 
-            jct_data = df["jct"].dropna()
+            jct_data = df_task["jct"].dropna()
 
             if len(jct_data) == 0:
                 print(f"Warning: No JCT data in {file_path}. Skipping.")
@@ -72,12 +78,12 @@ def main():
 
             x, y = get_cdf(jct_data)
 
-            # Highlight Pollux Patient with a thicker line
+            # Highlight PACE with a thicker line
             linewidth = 3.0 if scheduler_key == "pollux_patient" else 1.5
             alpha = 1.0 if scheduler_key == "pollux_patient" else 0.7
 
-            # Ensure color consistency
-            color = colors[idx]
+            # 使用全局颜色配置
+            color = get_scheduler_color(scheduler_key)
 
             plt.plot(x, y, label=label, linewidth=linewidth, alpha=alpha, color=color)
 
@@ -85,15 +91,20 @@ def main():
             print(f"Error processing {file_path}: {e}")
 
     plt.xscale("log")
-    plt.xlabel("Job Completion Time (s) [Log Scale]", fontsize=12)
-    plt.ylabel("CDF (Cumulative Distribution Function)", fontsize=12)
-    plt.title("JCT Distribution & Fairness Analysis", fontsize=14)
-    plt.legend(fontsize=10)
+    plt.xlabel("Job Completion Time (s) [Log Scale]", fontsize=17, fontweight="bold")
+    plt.ylabel("CDF", fontsize=17, fontweight="bold")
+    plt.title("JCT Distribution & Fairness Analysis", fontsize=19, fontweight="bold")
+    plt.legend(fontsize=15, frameon=True, facecolor="white", edgecolor="gray")
     plt.grid(True, which="both", ls="-", alpha=0.2)
+    plt.tick_params(axis="both", labelsize=15)
+    for label in plt.gca().get_xticklabels() + plt.gca().get_yticklabels():
+        label.set_fontweight("bold")
 
     plt.tight_layout()
-    plt.savefig(output_file, dpi=300)
-    print(f"\nCDF plot saved to {output_file}")
+    plt.savefig(output_png, dpi=300)
+    plt.savefig(output_pdf)
+    print(f"\nCDF plot saved to {output_png}")
+    print(f"CDF plot saved to {output_pdf}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import os
+from utils.plotting.colors import get_scheduler_color, get_scheduler_display_name
 
 # Set style
 try:
@@ -13,29 +13,48 @@ except:
 def plot_main_comparison():
     results_dir = "results"
     csv_file = os.path.join(results_dir, "comparison-main.csv")
+    fallback_csv = os.path.join(results_dir, "comparison.csv")
+    scalability_csv = os.path.join(results_dir, "scalability_completion.csv")
     output_file = os.path.join(results_dir, "main_gpu_time_comparison.png")
 
-    if not os.path.exists(csv_file):
+    df = None
+    if os.path.exists(csv_file):
+        df = pd.read_csv(csv_file)
+    elif os.path.exists(scalability_csv):
+        # Prefer Experiment 1 results for the main comparison summary.
+        # Default to the high-load setting (N=1000).
+        sc = pd.read_csv(scalability_csv)
+        sc = sc[sc["Num Tasks"] == 1000].copy()
+        if sc.empty:
+            print(f"Error: no rows with Num Tasks == 1000 in {scalability_csv}")
+            return
+
+        # Normalize scheduler naming to match the rest of the plotting scripts.
+        sc["Scheduler"] = sc["Scheduler"].astype(str).str.replace("-", "_", regex=False)
+
+        df = pd.DataFrame(
+            {
+                "Scheduler": sc["Scheduler"],
+                "Total GPU Time (s)": sc["Total GPU Time"],
+                "Avg JCT (s)": sc["Avg JCT"],
+                "Avg Wait (s)": sc["Avg Wait"],
+                "Makespan (s)": sc["Makespan"],
+                "Cost Per Task (GPU-s)": sc["Total GPU Time"] / sc["Num Tasks"],
+            }
+        )
+    elif os.path.exists(fallback_csv):
+        df = pd.read_csv(fallback_csv)
+    else:
         print(f"Error: {csv_file} not found.")
         return
-
-    df = pd.read_csv(csv_file)
 
     # Sort to make the comparison clear (e.g., descending order of GPU Time)
     # But we want 'pollux_patient' to be distinct, maybe first or last.
     # Let's sort by Total GPU Time descending so the smallest bar (Ours) is at the end or prominent.
     df = df.sort_values("Total GPU Time (s)", ascending=False)
 
-    # Clean up names for display
-    name_map = {
-        "pollux_patient": "Pollux Patient (Ours)",
-        "pollux": "Pollux",
-        "rack_aware": "Rack Aware",
-        "min_gpu_time": "Min GPU Time (Scheduler)",
-        "first_fit": "First Fit",
-        "best_fit": "Best Fit",
-    }
-    df["Display Name"] = df["Scheduler"].map(name_map)
+    # Clean up names for display - 使用全局配置
+    df["Display Name"] = df["Scheduler"].apply(get_scheduler_display_name)
 
     # Calculate savings relative to Rack Aware (Baseline)
     baseline_val = df[df["Scheduler"] == "rack_aware"]["Total GPU Time (s)"].values[0]
@@ -44,15 +63,8 @@ def plot_main_comparison():
 
     plt.figure(figsize=(10, 6))
 
-    # Create color list: Highlight ours with Green, others Gray/Blue
-    colors = []
-    for sched in df["Scheduler"]:
-        if sched == "pollux_patient":
-            colors.append("#2ca02c")  # Green
-        elif sched == "pollux":
-            colors.append("#ff7f0e")  # Orange
-        else:
-            colors.append("#1f77b4")  # Blue (or gray '#7f7f7f' for less emphasis)
+    # 使用全局颜色配置
+    colors = [get_scheduler_color(sched) for sched in df["Scheduler"]]
 
     bars = plt.bar(
         df["Display Name"], df["Total GPU Time (s)"], color=colors, alpha=0.8, width=0.6
@@ -90,7 +102,7 @@ def plot_main_comparison():
         fontsize=12,
         verticalalignment="top",
         horizontalalignment="right",
-        bbox=dict(boxstyle="round", facecolor="white", alpha=0.9, edgecolor="#2ca02c"),
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.9, edgecolor="#F47F72"),
     )
 
     plt.grid(axis="y", linestyle="--", alpha=0.3)

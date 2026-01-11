@@ -1,8 +1,15 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import os
 import numpy as np
+
+try:
+    import seaborn as sns
+
+    _HAVE_SEABORN = True
+except Exception:
+    sns = None
+    _HAVE_SEABORN = False
 
 # Set style for publication quality
 try:
@@ -21,6 +28,9 @@ def plot_scalability():
         return
 
     df = pd.read_csv(csv_file)
+
+    # Rename scheduler for paper
+    df["Scheduler"] = df["Scheduler"].replace({"pollux-patient": "Eco-Pollux (Ours)"})
 
     # --- Data Preprocessing & New Metrics ---
     # Calculate actual completed count to derive per-task metrics
@@ -78,7 +88,11 @@ def plot_scalability():
     # Scheduler styling
     schedulers = df["Scheduler"].unique()
     # Use a high-contrast palette
-    colors = sns.color_palette("deep", len(schedulers))
+    if _HAVE_SEABORN:
+        colors = sns.color_palette("deep", len(schedulers))
+    else:
+        cmap = plt.get_cmap("tab10")
+        colors = [cmap(i % 10) for i in range(len(schedulers))]
     sched_map = {sched: colors[i] for i, sched in enumerate(schedulers)}
 
     markers = ["o", "s", "^", "D", "v", "P"]

@@ -83,7 +83,7 @@ def plot_scalability_lines_refined():
             "marker": "o",
             "ls": "-",
             "lw": 3.5,
-            "label": "Pollux Patient (Ours)",
+            "label": "Eco-Pollux (Ours)",
             "zorder": 10,
         },  # Strong Green
         "pollux": {

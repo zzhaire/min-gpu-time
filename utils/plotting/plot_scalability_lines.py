@@ -180,7 +180,7 @@ def plot_scalability_lines():
             # Pretty print label
             lbl = sched
             if sched == "pollux_patient":
-                lbl = "Pollux Patient (Ours)"
+                lbl = "Eco-Pollux (Ours)"
             elif sched == "min-gpu-time":
                 lbl = "Min GPU Time"
             elif sched == "first-fit":

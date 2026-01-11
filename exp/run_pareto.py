@@ -9,7 +9,8 @@ import csv
 from copy import deepcopy
 
 # 添加项目根目录到路径
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 
 from config.config import (
     default_cluster_config,
@@ -132,7 +133,8 @@ def main():
 
     # 2. Pollux Patient (Varying Patience)
     # Vary Patience Threshold
-    patience_levels = [1.0, 1.2, 1.5, 2.2, 100.0]
+    # Sweep a small set of points for a clean Pareto figure.
+    patience_levels = [1.2, 1.6, 2.4]
     for p in patience_levels:
         cost, speed = run_experiment("pollux-patient", tasks, alpha=0.5, patience=p)
         results.append(
